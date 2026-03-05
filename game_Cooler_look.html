@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Matcher Game</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Poppins:wght@400;600&display=swap');
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #0d0d1a;
+            font-family: 'Poppins', sans-serif;
+            color: #fff;
+        }
+
+        #game {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        #game h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        #game p {
+            display: inline-block;
+            margin: 0 12px;
+            font-size: 0.95rem;
+            color: #aaa;
+        }
+
+        #game span {
+            color: #a78bfa;
+            font-weight: 600;
+        }
+
+        .card {
+            width: 80px;
+            height: 80px;
+            margin: 5px;
+            background: linear-gradient(135deg, #1e1e3a, #2a2a4a);
+            border: 2px solid #3a3a6a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 12px;
+            user-select: none;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .card:hover:not(.flipped):not(.matched) {
+            transform: scale(1.08);
+            border-color: #a78bfa;
+            box-shadow: 0 0 14px rgba(167,139,250,0.5);
+        }
+
+        .card.flipped {
+            background: linear-gradient(135deg, #2d2b55, #3b3980);
+            border-color: #60a5fa;
+            box-shadow: 0 0 14px rgba(96,165,250,0.4);
+        }
+
+        .card.matched {
+            background: linear-gradient(135deg, #064e3b, #059669);
+            border-color: #34d399;
+            box-shadow: 0 0 16px rgba(52,211,153,0.5);
+            animation: matchPop 0.35s ease;
+        }
+
+        .card.wrong {
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes matchPop {
+            0%   { transform: scale(1); }
+            50%  { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25%       { transform: translateX(-6px); }
+            75%       { transform: translateX(6px); }
+        }
+
+        #win {
+            margin-top: 16px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            background: linear-gradient(90deg, #fbbf24, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.8; }
+            to   { opacity: 1; filter: drop-shadow(0 0 8px #fbbf24); }
+        }
+
+        button {
+            margin-top: 18px;
+            padding: 10px 28px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            color: #fff;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(124,58,237,0.5);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(124,58,237,0.7);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game">
+        <h2>Memory Matching Game</h2>
+        <p>Moves: <span id="moves">0</span></p>
+        <p>Time: <span id="timer">0</span> seconds</p>
+    </div>
+
+    <div id="board" style="width: 400px; display: flex; flex-wrap: wrap;"></div>
+
+    <div id="win" style="display: none;">
+        <h2>You Win! 🎉</h2>
+    </div>
+
+    <br>
+    <button onclick="initGame()">Restart</button>
+
+    <audio id="match" src="match.wav"></audio>
+    <audio id="unmatch" src="wrong.mp3"></audio>
+
+</body>
+
+<script>
+    let arr = ['🍎','🍌','🍇','🍓','🍍','🥝','😂','😉','👻','🕷'];
+    let moves = 0;
+    let matched = 0;
+    let a = null;
+    let b = null;
+    let done = false;
+    let sec = 0;
+    let timer = null;
+    let play = false;
+
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            let j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function initGame() {
+        moves = 0;
+        matched = 0;
+        a = null;
+        b = null;
+        done = false;
+        play = false;
+        sec = 0;
+        clearInterval(timer);
+        timer = null;
+
+        $('#moves').text(0);
+        $('#timer').text(0);
+        $('#win').hide();
+        $('#board').empty();
+
+        let deck = shuffle([...arr, ...arr]);
+
+        deck.forEach(function(emoji) {
+            let $card = $('<div class="card"></div>');
+            $card.data('emoji', emoji);
+            $card.on('click', flipCard);
+            $('#board').append($card);
+        });
+    }
+
+    function flipCard() {
+        if (done) return;
+        if ($(this).hasClass('flipped') || $(this).hasClass('matched')) return;
+
+        if (!play) {
+            play = true;
+            timer = setInterval(function() {
+                sec++;
+                $('#timer').text(sec);
+            }, 1000);
+        }
+
+        $(this).addClass('flipped').text($(this).data('emoji'));
+
+        if (!a) {
+            a = $(this);
+        } else {
+            b = $(this);
+            done = true;
+            moves++;
+            $('#moves').text(moves);
+            checkMatch();
+        }
+    }
+
+    function checkMatch() {
+        let e1 = a.data('emoji');
+        let e2 = b.data('emoji');
+
+        if (e1 === e2) {
+            a.addClass('matched');
+            b.addClass('matched');
+            document.getElementById('match').play();
+            matched++;
+
+            a = null;
+            b = null;
+            done = false;
+
+            if (matched === arr.length) {
+                clearInterval(timer);
+                setTimeout(function() {
+                    $('#win').show();
+                }, 300);
+            }
+        } else {
+            a.addClass('wrong');
+            b.addClass('wrong');
+            setTimeout(function() {
+                a.removeClass('flipped wrong').text('');
+                b.removeClass('flipped wrong').text('');
+                let w = document.getElementById('unmatch');
+                w.currentTime = 0;
+                w.play();
+                a = null;
+                b = null;
+                done = false;
+            }, 1000);
+        }
+    }
+
+    $(document).ready(function() {
+        initGame();
+    });
+</script>
+
+</html>

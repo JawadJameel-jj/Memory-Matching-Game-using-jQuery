@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Matcher Game</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #a2a2a2;
+        }
+
+        #game {
+            text-align: center;
+        }
+
+        .card {
+            width: 80px;
+            height: 80px;
+            margin: 5px;
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 8px;
+            user-select: none;
+            transition: background-color 0.3s;
+        }
+
+        .card.flipped {
+            background-color: #fff;
+            color: #333;
+        }
+
+        .card.matched {
+            background-color: #90ee90;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game">
+        <h2>Memory Matching Game</h2>
+        <p>Moves: <span id="moves">0</span></p>
+        <p>Time: <span id="timer">0</span> seconds</p>
+    </div>
+
+    <div id="board" style="width: 400px; display: flex; flex-wrap: wrap;"></div>
+
+    <div id="win" style="display: none;">
+        <h2>You Win! 🎉</h2>
+    </div>
+
+    <br>
+    <button onclick="initGame()">Restart</button>
+
+    <audio id="match" src="match.wav"></audio>
+    <audio id="unmatch" src="wrong.mp3"></audio>
+
+</body>
+
+<script>
+    let arr = ['🍎','🍌','🍇','🍓','🍍','🥝','😂','😉','👻','🕷'];
+    let moves = 0;
+    let matched = 0;
+    let a = null;
+    let b = null;
+    let done = false;
+    let sec = 0;
+    let timer = null;
+    let play = false;
+
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            let j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function initGame() {
+        moves = 0;
+        matched = 0;
+        a = null;
+        b = null;
+        done = false;
+        play = false;
+        sec = 0;
+        clearInterval(timer);
+        timer = null;
+
+        $('#moves').text(0);
+        $('#timer').text(0);
+        $('#win').hide();
+        $('#board').empty();
+
+        let deck = shuffle([...arr, ...arr]);
+
+        deck.forEach(function(emoji) {
+            let $card = $('<div class="card"></div>');
+            $card.data('emoji', emoji);
+            $card.on('click', flipCard);
+            $('#board').append($card);
+        });
+    }
+
+    function flipCard() {
+        if (done) return;
+        if ($(this).hasClass('flipped') || $(this).hasClass('matched')) return;
+
+        if (!play) {
+            play = true;
+            timer = setInterval(function() {
+                sec++;
+                $('#timer').text(sec);
+            }, 1000);
+        }
+
+        $(this).addClass('flipped').text($(this).data('emoji'));
+
+        if (!a) {
+            a = $(this);
+        } else {
+            b = $(this);
+            done = true;
+            moves++;
+            $('#moves').text(moves);
+            checkMatch();
+        }
+    }
+
+    function checkMatch() {
+        let e1 = a.data('emoji');
+        let e2 = b.data('emoji');
+
+        if (e1 === e2) {
+            a.addClass('matched');
+            b.addClass('matched');
+            document.getElementById('match').play();
+            matched++;
+
+            a = null;
+            b = null;
+            done = false;
+
+            if (matched === arr.length) {
+                clearInterval(timer);
+                setTimeout(function() {
+                    $('#win').show();
+                }, 300);
+            }
+        } else {
+            setTimeout(function() {
+                a.removeClass('flipped').text('');
+                b.removeClass('flipped').text('');
+                let w = document.getElementById('unmatch');
+                w.currentTime = 0;
+                w.play();
+                a = null;
+                b = null;
+                done = false;
+            }, 1000);
+        }
+    }
+
+    $(document).ready(function() {
+        initGame();
+    });
+</script>
+
+</html>
